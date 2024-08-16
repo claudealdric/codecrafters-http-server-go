@@ -30,13 +30,15 @@ func main() {
 	}
 	defer listener.Close()
 
-	conn, err := listener.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
 
-	processRequest(conn)
+		go processRequest(conn)
+	}
 }
 
 func processRequest(conn net.Conn) {
