@@ -34,8 +34,7 @@ func main() {
 		http.StatusNotFound: "Not Found",
 	}
 
-	reader := bufio.NewReader(conn)
-	requestLine, _ := reader.ReadString('\n')
+	requestLine, _ := bufio.NewReader(conn).ReadString('\n')
 	target := strings.Fields(requestLine)[1]
 
 	if target == "/" {
