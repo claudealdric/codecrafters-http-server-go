@@ -139,30 +139,30 @@ func handleUserAgent(conn net.Conn, headers map[string]string) {
 	fmt.Fprint(conn, response.String())
 }
 
-func buildStatusLine(b *strings.Builder, statusCode int) {
-	b.WriteString(fmt.Sprintf(
+func buildStatusLine(builder *strings.Builder, statusCode int) {
+	builder.WriteString(fmt.Sprintf(
 		"%s %d %s",
 		httpVersion,
 		statusCode,
 		statusCodeToReasonPhrase[statusCode],
 	))
-	buildDelineator(b)
+	buildDelineator(builder)
 }
 
-func buildDelineator(b *strings.Builder) {
-	b.WriteString("\r\n")
+func buildDelineator(builder *strings.Builder) {
+	builder.WriteString("\r\n")
 }
 
-func buildPlainTextHeaders(b *strings.Builder, content string) {
+func buildPlainTextHeaders(builder *strings.Builder, content string) {
 	headers := map[string]string{
 		"Content-Type":   "text/plain",
 		"Content-Length": strconv.Itoa(len(content)),
 	}
 
 	for k, v := range headers {
-		b.WriteString(fmt.Sprintf("%s: %s", k, v))
-		buildDelineator(b)
+		builder.WriteString(fmt.Sprintf("%s: %s", k, v))
+		buildDelineator(builder)
 	}
 
-	buildDelineator(b)
+	buildDelineator(builder)
 }
