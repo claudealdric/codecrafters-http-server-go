@@ -38,8 +38,7 @@ func main() {
 	requestLine, _ := reader.ReadString('\n')
 	target := strings.Fields(requestLine)[1]
 
-	switch target {
-	case "/":
+	if target == "/" {
 		fmt.Fprintf(
 			conn,
 			"%s %d %s\r\n\r\n",
@@ -47,7 +46,18 @@ func main() {
 			http.StatusOK,
 			statusCodeToReasonPhrase[http.StatusOK],
 		)
-	default:
+	} else if strings.HasPrefix(target, "/echo/") {
+		echoArg := strings.TrimPrefix(target, "/echo/")
+		fmt.Fprintf(
+			conn,
+			"%s %d %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+			httpVersion,
+			http.StatusOK,
+			statusCodeToReasonPhrase[http.StatusOK],
+			len(echoArg),
+			echoArg,
+		)
+	} else {
 		fmt.Fprintf(
 			conn,
 			"%s %d %s\r\n\r\n",
