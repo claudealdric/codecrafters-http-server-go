@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -27,61 +28,97 @@ func main() {
 		fmt.Printf("Failed to bind to port %d\n", port)
 		os.Exit(1)
 	}
-
-	conn, err := listener.Accept()
 	defer listener.Close()
 
+	conn, err := listener.Accept()
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
 
-	requestLine, _ := bufio.NewReader(conn).ReadString('\n')
-	path := strings.Fields(requestLine)[1]
+	processRequest(conn)
+}
 
-	routePath(conn, path)
+func processRequest(conn net.Conn) {
+	defer conn.Close()
+
+	requestLine, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println("Error reading request: ", err.Error())
+		return
+	}
+
+	path := extractPath(requestLine)
+	routeRequest(conn, path)
 
 }
 
-func routePath(conn net.Conn, path string) {
-	if path == "/" {
+func extractPath(requestLine string) string {
+	return strings.Fields(requestLine)[1]
+}
+
+func routeRequest(conn net.Conn, path string) {
+	switch {
+	case path == "/":
 		handleRoot(conn)
-	} else if strings.HasPrefix(path, "/echo/") {
+	case strings.HasPrefix(path, "/echo/"):
 		handleEcho(conn, path)
-	} else {
+	default:
 		handleNotFound(conn)
 	}
 }
 
 func handleRoot(conn net.Conn) {
-	fmt.Fprintf(
-		conn,
-		"%s %d %s\r\n\r\n",
-		httpVersion,
-		http.StatusOK,
-		statusCodeToReasonPhrase[http.StatusOK],
-	)
+	var response strings.Builder
+	buildStatusLine(&response, http.StatusOK)
+	buildDelineator(&response)
+
+	fmt.Fprint(conn, response.String())
 }
 
 func handleNotFound(conn net.Conn) {
-	fmt.Fprintf(
-		conn,
-		"%s %d %s\r\n\r\n",
-		httpVersion,
-		http.StatusNotFound,
-		statusCodeToReasonPhrase[http.StatusNotFound],
-	)
+	var response strings.Builder
+	buildStatusLine(&response, http.StatusNotFound)
+	buildDelineator(&response)
+
+	fmt.Fprint(conn, response.String())
 }
 
 func handleEcho(conn net.Conn, path string) {
 	echoArg := strings.TrimPrefix(path, "/echo/")
-	fmt.Fprintf(
-		conn,
-		"%s %d %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+
+	var response strings.Builder
+	buildStatusLine(&response, http.StatusOK)
+	buildPlainTextHeaders(&response, echoArg)
+	response.WriteString(echoArg)
+
+	fmt.Fprint(conn, response.String())
+}
+
+func buildStatusLine(b *strings.Builder, statusCode int) {
+	b.WriteString(fmt.Sprintf(
+		"%s %d %s",
 		httpVersion,
-		http.StatusOK,
-		statusCodeToReasonPhrase[http.StatusOK],
-		len(echoArg),
-		echoArg,
-	)
+		statusCode,
+		statusCodeToReasonPhrase[statusCode],
+	))
+	buildDelineator(b)
+}
+
+func buildDelineator(b *strings.Builder) {
+	b.WriteString("\r\n")
+}
+
+func buildPlainTextHeaders(b *strings.Builder, content string) {
+	headers := map[string]string{
+		"Content-Type":   "text/plain",
+		"Content-Length": strconv.Itoa(len(content)),
+	}
+
+	for k, v := range headers {
+		b.WriteString(fmt.Sprintf("%s: %s", k, v))
+		buildDelineator(b)
+	}
+
+	buildDelineator(b)
 }
