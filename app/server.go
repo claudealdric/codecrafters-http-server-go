@@ -14,6 +14,11 @@ const (
 	httpVersion = "HTTP/1.1"
 )
 
+var statusCodeToReasonPhrase = map[int]string{
+	http.StatusOK:       "OK",
+	http.StatusNotFound: "Not Found",
+}
+
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 
@@ -25,46 +30,58 @@ func main() {
 
 	conn, err := listener.Accept()
 	defer listener.Close()
+
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
 
-	statusCodeToReasonPhrase := map[int]string{
-		http.StatusOK:       "OK",
-		http.StatusNotFound: "Not Found",
-	}
-
 	requestLine, _ := bufio.NewReader(conn).ReadString('\n')
-	target := strings.Fields(requestLine)[1]
+	path := strings.Fields(requestLine)[1]
 
-	if target == "/" {
-		fmt.Fprintf(
-			conn,
-			"%s %d %s\r\n\r\n",
-			httpVersion,
-			http.StatusOK,
-			statusCodeToReasonPhrase[http.StatusOK],
-		)
-	} else if strings.HasPrefix(target, "/echo/") {
-		echoArg := strings.TrimPrefix(target, "/echo/")
-		fmt.Fprintf(
-			conn,
-			"%s %d %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
-			httpVersion,
-			http.StatusOK,
-			statusCodeToReasonPhrase[http.StatusOK],
-			len(echoArg),
-			echoArg,
-		)
+	routePath(conn, path)
+
+}
+
+func routePath(conn net.Conn, path string) {
+	if path == "/" {
+		handleRoot(conn)
+	} else if strings.HasPrefix(path, "/echo/") {
+		handleEcho(conn, path)
 	} else {
-		fmt.Fprintf(
-			conn,
-			"%s %d %s\r\n\r\n",
-			httpVersion,
-			http.StatusNotFound,
-			statusCodeToReasonPhrase[http.StatusNotFound],
-		)
+		handleNotFound(conn)
 	}
+}
 
+func handleRoot(conn net.Conn) {
+	fmt.Fprintf(
+		conn,
+		"%s %d %s\r\n\r\n",
+		httpVersion,
+		http.StatusOK,
+		statusCodeToReasonPhrase[http.StatusOK],
+	)
+}
+
+func handleNotFound(conn net.Conn) {
+	fmt.Fprintf(
+		conn,
+		"%s %d %s\r\n\r\n",
+		httpVersion,
+		http.StatusNotFound,
+		statusCodeToReasonPhrase[http.StatusNotFound],
+	)
+}
+
+func handleEcho(conn net.Conn, path string) {
+	echoArg := strings.TrimPrefix(path, "/echo/")
+	fmt.Fprintf(
+		conn,
+		"%s %d %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+		httpVersion,
+		http.StatusOK,
+		statusCodeToReasonPhrase[http.StatusOK],
+		len(echoArg),
+		echoArg,
+	)
 }
