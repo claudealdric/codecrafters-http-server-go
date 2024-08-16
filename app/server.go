@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -21,5 +23,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Fprint(conn, "HTTP/1.1 200 OK\r\n\r\n")
+	reader := bufio.NewReader(conn)
+	requestLine, _ := reader.ReadString('\n')
+	target := strings.Fields(requestLine)[1]
+
+	switch target {
+	case "/":
+		fmt.Fprint(conn, "HTTP/1.1 200 OK\r\n\r\n")
+	default:
+		fmt.Fprint(conn, "HTTP/1.1 404 Not Found\r\n\r\n")
+	}
+
 }
