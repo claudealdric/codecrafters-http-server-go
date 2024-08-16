@@ -24,6 +24,7 @@ func main() {
 	}
 
 	conn, err := listener.Accept()
+	defer listener.Close()
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
