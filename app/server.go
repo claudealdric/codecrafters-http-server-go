@@ -4,16 +4,22 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
+)
+
+const (
+	port        = 4221
+	httpVersion = "HTTP/1.1"
 )
 
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 
-	listener, err := net.Listen("tcp", "0.0.0.0:4221")
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		fmt.Println("Failed to bind to port 4221")
+		fmt.Printf("Failed to bind to port %d\n", port)
 		os.Exit(1)
 	}
 
@@ -23,15 +29,32 @@ func main() {
 		os.Exit(1)
 	}
 
+	statusCodeToReasonPhrase := map[int]string{
+		http.StatusOK:       "OK",
+		http.StatusNotFound: "Not Found",
+	}
+
 	reader := bufio.NewReader(conn)
 	requestLine, _ := reader.ReadString('\n')
 	target := strings.Fields(requestLine)[1]
 
 	switch target {
 	case "/":
-		fmt.Fprint(conn, "HTTP/1.1 200 OK\r\n\r\n")
+		fmt.Fprintf(
+			conn,
+			"%s %d %s\r\n\r\n",
+			httpVersion,
+			http.StatusOK,
+			statusCodeToReasonPhrase[http.StatusOK],
+		)
 	default:
-		fmt.Fprint(conn, "HTTP/1.1 404 Not Found\r\n\r\n")
+		fmt.Fprintf(
+			conn,
+			"%s %d %s\r\n\r\n",
+			httpVersion,
+			http.StatusNotFound,
+			statusCodeToReasonPhrase[http.StatusNotFound],
+		)
 	}
 
 }
