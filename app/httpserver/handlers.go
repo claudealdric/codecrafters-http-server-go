@@ -8,9 +8,20 @@ import (
 	"github.com/codecrafters-io/http-server-starter-go/app/config"
 )
 
+var validEncodings = map[string]struct{}{
+	"gzip": struct{}{},
+}
+
 func handleEcho(request *Request) {
 	echoArg := strings.TrimPrefix(request.path, "/echo/")
 	response := NewResponse(StatusOK, echoArg)
+	cs, shouldEncode := request.headers["accept-encoding"]
+	if shouldEncode {
+		_, validEncoding := validEncodings[cs]
+		if validEncoding {
+			response.headers["Content-Encoding"] = cs
+		}
+	}
 	response.Send(request)
 }
 
