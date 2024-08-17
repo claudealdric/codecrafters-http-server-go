@@ -21,11 +21,6 @@ var statusCodeToReasonPhrase = map[int]string{
 	http.StatusOK:       "OK",
 	http.StatusNotFound: "Not Found",
 }
-
-type Config struct {
-	directory string
-}
-
 var config Config
 
 func main() {
@@ -126,41 +121,25 @@ func routeRequest(conn net.Conn, path string, headers map[string]string) {
 }
 
 func handleRoot(conn net.Conn) {
-	var response strings.Builder
-	buildStatusLine(&response, http.StatusOK)
-	buildDelineator(&response)
-
-	fmt.Fprint(conn, response.String())
+	response := getResponse(http.StatusOK, "")
+	respond(conn, getResponseString(response))
 }
 
 func handleNotFound(conn net.Conn) {
-	var response strings.Builder
-	buildStatusLine(&response, http.StatusNotFound)
-	buildDelineator(&response)
-
-	fmt.Fprint(conn, response.String())
+	response := getResponse(http.StatusNotFound, "")
+	respond(conn, getResponseString(response))
 }
 
 func handleEcho(conn net.Conn, path string) {
 	echoArg := strings.TrimPrefix(path, "/echo/")
-
-	var response strings.Builder
-	buildStatusLine(&response, http.StatusOK)
-	buildPlainTextHeaders(&response, echoArg)
-	response.WriteString(echoArg)
-
-	fmt.Fprint(conn, response.String())
+	response := getResponse(http.StatusOK, echoArg)
+	respond(conn, getResponseString(response))
 }
 
 func handleUserAgent(conn net.Conn, headers map[string]string) {
 	userAgent := headers["user-agent"]
-
-	var response strings.Builder
-	buildStatusLine(&response, http.StatusOK)
-	buildPlainTextHeaders(&response, userAgent)
-	response.WriteString(userAgent)
-
-	fmt.Fprint(conn, response.String())
+	response := getResponse(http.StatusOK, userAgent)
+	respond(conn, getResponseString(response))
 }
 
 func handleFiles(conn net.Conn, path string) {
@@ -170,13 +149,9 @@ func handleFiles(conn net.Conn, path string) {
 		handleNotFound(conn)
 		return
 	}
-
-	var response strings.Builder
-	buildStatusLine(&response, http.StatusOK)
-	buildOctetStreamHeaders(&response, content)
-	response.WriteString(string(content))
-
-	fmt.Fprint(conn, response.String())
+	response := getResponse(http.StatusOK, string(content))
+	response.headers["Content-Type"] = "application/octet-stream"
+	respond(conn, getResponseString(response))
 }
 
 func buildStatusLine(builder *strings.Builder, statusCode int) {
@@ -193,13 +168,18 @@ func buildDelineator(builder *strings.Builder) {
 	builder.WriteString("\r\n")
 }
 
-func buildPlainTextHeaders(builder *strings.Builder, content string) {
-	headers := map[string]string{
-		"Content-Type":   "text/plain",
-		"Content-Length": strconv.Itoa(len(content)),
-	}
+func buildHeaders(builder *strings.Builder, response *Response) {
+	response.headers["Content-Length"] = strconv.Itoa(len(response.body))
 
-	for k, v := range headers {
+	if response.headers["Content-Type"] == "application/octet-stream" {
+		buildOctetStreamHeaders(builder, response)
+	} else {
+		buildPlainTextHeaders(builder, response)
+	}
+}
+
+func buildPlainTextHeaders(builder *strings.Builder, response *Response) {
+	for k, v := range response.headers {
 		builder.WriteString(fmt.Sprintf("%s: %s", k, v))
 		buildDelineator(builder)
 	}
@@ -207,16 +187,56 @@ func buildPlainTextHeaders(builder *strings.Builder, content string) {
 	buildDelineator(builder)
 }
 
-func buildOctetStreamHeaders(builder *strings.Builder, content []byte) {
-	headers := map[string]string{
-		"Content-Type":   "application/octet-stream",
-		"Content-Length": strconv.Itoa(len(content)),
-	}
-
-	for k, v := range headers {
+func buildOctetStreamHeaders(builder *strings.Builder, response *Response) {
+	for k, v := range response.headers {
 		builder.WriteString(fmt.Sprintf("%s: %s", k, v))
 		buildDelineator(builder)
 	}
 
 	buildDelineator(builder)
+}
+
+func getResponseString(response *Response) string {
+	var s strings.Builder
+
+	buildStatusLine(&s, response.statusCode)
+
+	if response.headers != nil {
+		buildHeaders(&s, response)
+	}
+
+	if response.body != "" {
+		s.WriteString(response.body)
+	}
+
+	return s.String()
+}
+
+func getResponse(statusCode int, body string) *Response {
+	headers := make(map[string]string)
+
+	if body != "" {
+		headers["Content-Type"] = "text/plain"
+		headers["Content-Length"] = strconv.Itoa(len(body))
+	}
+
+	return &Response{
+		statusCode: statusCode,
+		headers:    headers,
+		body:       body,
+	}
+}
+
+func respond(c net.Conn, s string) {
+	fmt.Fprint(c, s)
+}
+
+type Config struct {
+	directory string
+}
+
+type Response struct {
+	statusCode int
+	headers    map[string]string
+	body       string
 }
