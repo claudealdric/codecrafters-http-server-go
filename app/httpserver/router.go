@@ -1,54 +1,41 @@
 package httpserver
 
 import (
-	"net"
-	"net/http"
 	"strings"
 )
 
-func routeRequest(conn net.Conn, request *request) {
-	method := extractMethod(request.line)
-
-	switch method {
+func routeRequest(request *request) {
+	switch request.method {
 	case "GET":
-		routeGetRequest(conn, request)
+		routeGetRequest(request)
 	case "POST":
-		routePostRequest(conn, request)
+		routePostRequest(request)
 	default:
-		handleNotFound(conn)
+		handleNotFound(request)
 	}
 
 }
 
-func handleNotFound(conn net.Conn) {
-	response := getResponse(http.StatusNotFound, "")
-	respond(conn, getResponseString(response))
-}
-
-func routeGetRequest(conn net.Conn, request *request) {
-	path := extractPath(request.line)
-
+func routeGetRequest(request *request) {
 	switch {
-	case path == "/":
-		handleRoot(conn)
-	case strings.HasPrefix(path, "/echo/"):
-		handleEcho(conn, path)
-	case strings.HasPrefix(path, "/user-agent"):
-		handleUserAgent(conn, request.headers)
-	case strings.HasPrefix(path, "/files/"):
-		handleGetFiles(conn, path)
+	case request.path == "/":
+		handleRoot(request)
+	case strings.HasPrefix(request.path, "/echo/"):
+		handleEcho(request)
+	case strings.HasPrefix(request.path, "/user-agent"):
+		handleUserAgent(request)
+	case strings.HasPrefix(request.path, "/files/"):
+		handleGetFiles(request)
 	default:
-		handleNotFound(conn)
+		handleNotFound(request)
 	}
 }
 
-func routePostRequest(conn net.Conn, request *request) {
-	path := extractPath(request.line)
-
+func routePostRequest(request *request) {
 	switch {
-	case strings.HasPrefix(path, "/files/"):
-		handlePostFiles(conn, path, request.body)
+	case strings.HasPrefix(request.path, "/files/"):
+		handlePostFiles(request)
 	default:
-		handleNotFound(conn)
+		handleNotFound(request)
 	}
 }

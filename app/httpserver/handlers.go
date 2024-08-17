@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,40 +9,45 @@ import (
 	"github.com/codecrafters-io/http-server-starter-go/app/config"
 )
 
-func handleEcho(conn net.Conn, path string) {
-	echoArg := strings.TrimPrefix(path, "/echo/")
-	response := getResponse(http.StatusOK, echoArg)
-	respond(conn, getResponseString(response))
+func handleEcho(request *request) {
+	echoArg := strings.TrimPrefix(request.path, "/echo/")
+	response := NewResponse(http.StatusOK, echoArg)
+	response.Send(request)
 }
 
-func handleGetFiles(conn net.Conn, path string) {
-	fileName := strings.TrimPrefix(path, "/files/")
+func handleGetFiles(request *request) {
+	fileName := strings.TrimPrefix(request.path, "/files/")
 	content, err := os.ReadFile(filepath.Join(config.Directory, fileName))
 	if err != nil && os.IsNotExist(err) {
-		handleNotFound(conn)
+		handleNotFound(request)
 		return
 	}
-	response := getResponse(http.StatusOK, string(content))
+	response := NewResponse(http.StatusOK, string(content))
 	response.headers["Content-Type"] = "application/octet-stream"
-	respond(conn, getResponseString(response))
+	response.Send(request)
 }
 
-func handlePostFiles(conn net.Conn, path string, data []byte) {
-	fileName := strings.TrimPrefix(path, "/files/")
+func handleNotFound(request *request) {
+	response := NewResponse(http.StatusNotFound, "")
+	response.Send(request)
+}
+
+func handlePostFiles(request *request) {
+	fileName := strings.TrimPrefix(request.path, "/files/")
 	filePath := filepath.Join(config.Directory, fileName)
-	os.WriteFile(filePath, data, 0644)
-	response := getResponse(http.StatusCreated, "")
-	respond(conn, getResponseString(response))
+	os.WriteFile(filePath, request.body, 0644)
+	response := NewResponse(http.StatusCreated, "")
+	response.Send(request)
 
 }
 
-func handleRoot(conn net.Conn) {
-	response := getResponse(http.StatusOK, "")
-	respond(conn, getResponseString(response))
+func handleRoot(request *request) {
+	response := NewResponse(http.StatusOK, "")
+	response.Send(request)
 }
 
-func handleUserAgent(conn net.Conn, headers map[string]string) {
-	userAgent := headers["user-agent"]
-	response := getResponse(http.StatusOK, userAgent)
-	respond(conn, getResponseString(response))
+func handleUserAgent(request *request) {
+	userAgent := request.headers["user-agent"]
+	response := NewResponse(http.StatusOK, userAgent)
+	response.Send(request)
 }

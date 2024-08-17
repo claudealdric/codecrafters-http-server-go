@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,85 +15,86 @@ var statusCodeToReasonPhrase = map[int]string{
 	http.StatusCreated:  "Created",
 }
 
-type response struct {
+type Response struct {
 	statusCode int
 	headers    map[string]string
 	body       string
+	builder    *strings.Builder
 }
 
-func getResponse(statusCode int, body string) *response {
+func NewResponse(statusCode int, body string) *Response {
 	headers := make(map[string]string)
+	var builder strings.Builder
 
 	if body != "" {
 		headers["Content-Type"] = "text/plain"
 		headers["Content-Length"] = strconv.Itoa(len(body))
 	}
 
-	return &response{
+	return &Response{
 		statusCode: statusCode,
 		headers:    headers,
 		body:       body,
+		builder:    &builder,
 	}
 }
 
-func getResponseString(response *response) string {
-	var s strings.Builder
+func (r *Response) Send(request *request) {
+	fmt.Fprint(request.conn, r.String())
+}
 
-	buildStatusLine(&s, response.statusCode)
+func (r *Response) String() string {
+	r.buildStatusLine()
 
-	if response.headers != nil {
-		buildHeaders(&s, response)
+	if r.headers != nil {
+		r.buildHeaders()
 	}
 
-	if response.body != "" {
-		s.WriteString(response.body)
+	if r.body != "" {
+		r.builder.WriteString(r.body)
 	}
 
-	return s.String()
+	return r.builder.String()
 }
 
-func respond(c net.Conn, s string) {
-	fmt.Fprint(c, s)
+func (r *Response) buildDelineator() {
+	r.builder.WriteString("\r\n")
 }
 
-func buildDelineator(builder *strings.Builder) {
-	builder.WriteString("\r\n")
-}
+func (r *Response) buildHeaders() {
+	r.headers["Content-Length"] = strconv.Itoa(len(r.body))
 
-func buildHeaders(builder *strings.Builder, response *response) {
-	response.headers["Content-Length"] = strconv.Itoa(len(response.body))
-
-	if response.headers["Content-Type"] == "application/octet-stream" {
-		buildOctetStreamHeaders(builder, response)
+	if r.headers["Content-Type"] == "application/octet-stream" {
+		r.buildOctetStreamHeaders()
 	} else {
-		buildPlainTextHeaders(builder, response)
+		r.buildPlainTextHeaders()
 	}
 }
 
-func buildOctetStreamHeaders(builder *strings.Builder, response *response) {
-	for k, v := range response.headers {
-		builder.WriteString(fmt.Sprintf("%s: %s", k, v))
-		buildDelineator(builder)
+func (r *Response) buildOctetStreamHeaders() {
+	for k, v := range r.headers {
+		r.builder.WriteString(fmt.Sprintf("%s: %s", k, v))
+		r.buildDelineator()
 	}
 
-	buildDelineator(builder)
+	r.buildDelineator()
 }
 
-func buildPlainTextHeaders(builder *strings.Builder, response *response) {
-	for k, v := range response.headers {
-		builder.WriteString(fmt.Sprintf("%s: %s", k, v))
-		buildDelineator(builder)
+func (r *Response) buildPlainTextHeaders() {
+	for k, v := range r.headers {
+		r.builder.WriteString(fmt.Sprintf("%s: %s", k, v))
+		r.buildDelineator()
 	}
 
-	buildDelineator(builder)
+	r.buildDelineator()
 }
 
-func buildStatusLine(builder *strings.Builder, statusCode int) {
-	builder.WriteString(fmt.Sprintf(
+func (r *Response) buildStatusLine() {
+	r.builder.WriteString(fmt.Sprintf(
 		"%s %d %s",
 		httpVersion,
-		statusCode,
-		statusCodeToReasonPhrase[statusCode],
+		r.statusCode,
+		statusCodeToReasonPhrase[r.statusCode],
 	))
-	buildDelineator(builder)
+	r.buildDelineator()
 }

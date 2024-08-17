@@ -10,7 +10,9 @@ import (
 )
 
 type request struct {
-	line    string
+	conn    net.Conn
+	method  string
+	path    string
 	headers map[string]string
 	body    []byte
 }
@@ -18,13 +20,40 @@ type request struct {
 func ProcessRequest(conn net.Conn) {
 	defer conn.Close()
 
-	request, err := parseRequest(conn)
+	request, err := newRequest(conn)
 	if err != nil {
 		fmt.Println("Error parsing the request:", err.Error())
 		return
 	}
 
-	routeRequest(conn, request)
+	routeRequest(request)
+}
+
+func newRequest(conn net.Conn) (*request, error) {
+	reader := bufio.NewReader(conn)
+
+	requestLine, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	headers, err := getHeaders(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := getRequestBody(reader, headers)
+	if err != nil {
+		return nil, err
+	}
+
+	return &request{
+		conn:    conn,
+		method:  extractMethod(requestLine),
+		path:    extractPath(requestLine),
+		headers: headers,
+		body:    body,
+	}, nil
 }
 
 func getHeaders(reader *bufio.Reader) (map[string]string, error) {
@@ -80,29 +109,4 @@ func extractMethod(requestLine string) string {
 
 func extractPath(requestLine string) string {
 	return strings.Fields(requestLine)[1]
-}
-
-func parseRequest(conn net.Conn) (*request, error) {
-	reader := bufio.NewReader(conn)
-
-	requestLine, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-
-	headers, err := getHeaders(reader)
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := getRequestBody(reader, headers)
-	if err != nil {
-		return nil, err
-	}
-
-	return &request{
-		line:    requestLine,
-		headers: headers,
-		body:    body,
-	}, nil
 }
