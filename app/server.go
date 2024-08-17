@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +21,7 @@ const (
 var statusCodeToReasonPhrase = map[int]string{
 	http.StatusOK:       "OK",
 	http.StatusNotFound: "Not Found",
+	http.StatusCreated:  "Created",
 }
 var config Config
 
@@ -73,8 +75,13 @@ func processRequest(conn net.Conn) {
 		return
 	}
 
-	path := extractPath(requestLine)
-	routeRequest(conn, path, headers)
+	body, err := getRequestBody(reader, headers)
+	if err != nil {
+		fmt.Println("Error reading request body:", err.Error())
+		return
+	}
+
+	routeRequest(conn, requestLine, headers, body)
 }
 
 func getHeaders(reader *bufio.Reader) (map[string]string, error) {
@@ -101,11 +108,50 @@ func getHeaders(reader *bufio.Reader) (map[string]string, error) {
 	return headers, nil
 }
 
+func getRequestBody(reader *bufio.Reader, headers map[string]string) ([]byte, error) {
+	contentLength := headers["content-length"]
+	if contentLength == "" {
+		return nil, nil
+	}
+
+	length, err := strconv.Atoi(contentLength)
+	if err != nil {
+		return nil, err
+	}
+
+	body := make([]byte, length)
+	_, err = io.ReadFull(reader, body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
+}
+
+func extractMethod(requestLine string) string {
+	return strings.Fields(requestLine)[0]
+}
+
 func extractPath(requestLine string) string {
 	return strings.Fields(requestLine)[1]
 }
 
-func routeRequest(conn net.Conn, path string, headers map[string]string) {
+func routeRequest(conn net.Conn, requestLine string, headers map[string]string, body []byte) {
+	method := extractMethod(requestLine)
+	path := extractPath(requestLine)
+
+	switch method {
+	case "GET":
+		routeGetRequest(conn, path, headers)
+	case "POST":
+		routePostRequest(conn, path, body)
+	default:
+		handleNotFound(conn)
+	}
+
+}
+
+func routeGetRequest(conn net.Conn, path string, headers map[string]string) {
 	switch {
 	case path == "/":
 		handleRoot(conn)
@@ -114,7 +160,16 @@ func routeRequest(conn net.Conn, path string, headers map[string]string) {
 	case strings.HasPrefix(path, "/user-agent"):
 		handleUserAgent(conn, headers)
 	case strings.HasPrefix(path, "/files/"):
-		handleFiles(conn, path)
+		handleGetFiles(conn, path)
+	default:
+		handleNotFound(conn)
+	}
+}
+
+func routePostRequest(conn net.Conn, path string, body []byte) {
+	switch {
+	case strings.HasPrefix(path, "/files/"):
+		handlePostFiles(conn, path, body)
 	default:
 		handleNotFound(conn)
 	}
@@ -142,7 +197,7 @@ func handleUserAgent(conn net.Conn, headers map[string]string) {
 	respond(conn, getResponseString(response))
 }
 
-func handleFiles(conn net.Conn, path string) {
+func handleGetFiles(conn net.Conn, path string) {
 	fileName := strings.TrimPrefix(path, "/files/")
 	content, err := os.ReadFile(filepath.Join(config.directory, fileName))
 	if err != nil && os.IsNotExist(err) {
@@ -152,6 +207,19 @@ func handleFiles(conn net.Conn, path string) {
 	response := getResponse(http.StatusOK, string(content))
 	response.headers["Content-Type"] = "application/octet-stream"
 	respond(conn, getResponseString(response))
+}
+
+func handlePostFiles(conn net.Conn, path string, data []byte) {
+	fileName := strings.TrimPrefix(path, "/files/")
+	filePath := filepath.Join(config.directory, fileName)
+	os.WriteFile(filePath, data, 0644)
+
+	var s strings.Builder
+	buildStatusLine(&s, http.StatusCreated)
+	buildDelineator(&s)
+
+	respond(conn, s.String())
+
 }
 
 func buildStatusLine(builder *strings.Builder, statusCode int) {
