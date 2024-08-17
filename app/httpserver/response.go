@@ -39,7 +39,7 @@ func NewResponse(statusCode int, body string) *Response {
 	}
 }
 
-func (r *Response) Send(request *request) {
+func (r *Response) Send(request *Request) {
 	fmt.Fprint(request.conn, r.String())
 }
 

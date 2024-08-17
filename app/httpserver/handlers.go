@@ -9,13 +9,13 @@ import (
 	"github.com/codecrafters-io/http-server-starter-go/app/config"
 )
 
-func handleEcho(request *request) {
+func handleEcho(request *Request) {
 	echoArg := strings.TrimPrefix(request.path, "/echo/")
 	response := NewResponse(http.StatusOK, echoArg)
 	response.Send(request)
 }
 
-func handleGetFiles(request *request) {
+func handleGetFiles(request *Request) {
 	fileName := strings.TrimPrefix(request.path, "/files/")
 	content, err := os.ReadFile(filepath.Join(config.Directory, fileName))
 	if err != nil && os.IsNotExist(err) {
@@ -27,12 +27,12 @@ func handleGetFiles(request *request) {
 	response.Send(request)
 }
 
-func handleNotFound(request *request) {
+func handleNotFound(request *Request) {
 	response := NewResponse(http.StatusNotFound, "")
 	response.Send(request)
 }
 
-func handlePostFiles(request *request) {
+func handlePostFiles(request *Request) {
 	fileName := strings.TrimPrefix(request.path, "/files/")
 	filePath := filepath.Join(config.Directory, fileName)
 	os.WriteFile(filePath, request.body, 0644)
@@ -41,12 +41,12 @@ func handlePostFiles(request *request) {
 
 }
 
-func handleRoot(request *request) {
+func handleRoot(request *Request) {
 	response := NewResponse(http.StatusOK, "")
 	response.Send(request)
 }
 
-func handleUserAgent(request *request) {
+func handleUserAgent(request *Request) {
 	userAgent := request.headers["user-agent"]
 	response := NewResponse(http.StatusOK, userAgent)
 	response.Send(request)

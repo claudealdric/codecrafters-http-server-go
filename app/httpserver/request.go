@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type request struct {
+type Request struct {
 	conn    net.Conn
 	method  string
 	path    string
@@ -20,16 +20,16 @@ type request struct {
 func ProcessRequest(conn net.Conn) {
 	defer conn.Close()
 
-	request, err := newRequest(conn)
+	request, err := NewRequest(conn)
 	if err != nil {
 		fmt.Println("Error parsing the request:", err.Error())
 		return
 	}
 
-	routeRequest(request)
+	RouteRequest(request)
 }
 
-func newRequest(conn net.Conn) (*request, error) {
+func NewRequest(conn net.Conn) (*Request, error) {
 	reader := bufio.NewReader(conn)
 
 	requestLine, err := reader.ReadString('\n')
@@ -47,7 +47,7 @@ func newRequest(conn net.Conn) (*request, error) {
 		return nil, err
 	}
 
-	return &request{
+	return &Request{
 		conn:    conn,
 		method:  extractMethod(requestLine),
 		path:    extractPath(requestLine),

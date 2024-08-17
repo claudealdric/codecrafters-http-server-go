@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-func routeRequest(request *request) {
+func RouteRequest(request *Request) {
 	switch request.method {
 	case "GET":
 		routeGetRequest(request)
@@ -16,7 +16,7 @@ func routeRequest(request *request) {
 
 }
 
-func routeGetRequest(request *request) {
+func routeGetRequest(request *Request) {
 	switch {
 	case request.path == "/":
 		handleRoot(request)
@@ -31,7 +31,7 @@ func routeGetRequest(request *request) {
 	}
 }
 
-func routePostRequest(request *request) {
+func routePostRequest(request *Request) {
 	switch {
 	case strings.HasPrefix(request.path, "/files/"):
 		handlePostFiles(request)
