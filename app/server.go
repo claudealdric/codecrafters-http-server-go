@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -20,8 +22,16 @@ var statusCodeToReasonPhrase = map[int]string{
 	http.StatusNotFound: "Not Found",
 }
 
+type Config struct {
+	directory string
+}
+
+var config Config
+
 func main() {
 	fmt.Println("Logs from your program will appear here!")
+
+	parseFlags()
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
@@ -33,12 +43,22 @@ func main() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
+			fmt.Println("Error accepting connection:", err.Error())
 			os.Exit(1)
 		}
 
 		go processRequest(conn)
 	}
+}
+
+func parseFlags() {
+	flag.StringVar(
+		&config.directory,
+		"directory",
+		"",
+		"Specify the directory where files are stored",
+	)
+	flag.Parse()
 }
 
 func processRequest(conn net.Conn) {
@@ -48,13 +68,13 @@ func processRequest(conn net.Conn) {
 
 	requestLine, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println("Error reading request: ", err.Error())
+		fmt.Println("Error reading request:", err.Error())
 		return
 	}
 
 	headers, err := getHeaders(reader)
 	if err != nil {
-		fmt.Println("Error reading headers: ", err.Error())
+		fmt.Println("Error reading headers:", err.Error())
 		return
 	}
 
@@ -98,6 +118,8 @@ func routeRequest(conn net.Conn, path string, headers map[string]string) {
 		handleEcho(conn, path)
 	case strings.HasPrefix(path, "/user-agent"):
 		handleUserAgent(conn, headers)
+	case strings.HasPrefix(path, "/files/"):
+		handleFiles(conn, path)
 	default:
 		handleNotFound(conn)
 	}
@@ -141,6 +163,22 @@ func handleUserAgent(conn net.Conn, headers map[string]string) {
 	fmt.Fprint(conn, response.String())
 }
 
+func handleFiles(conn net.Conn, path string) {
+	fileName := strings.TrimPrefix(path, "/files/")
+	content, err := os.ReadFile(filepath.Join(config.directory, fileName))
+	if err != nil && os.IsNotExist(err) {
+		handleNotFound(conn)
+		return
+	}
+
+	var response strings.Builder
+	buildStatusLine(&response, http.StatusOK)
+	buildOctetStreamHeaders(&response, content)
+	response.WriteString(string(content))
+
+	fmt.Fprint(conn, response.String())
+}
+
 func buildStatusLine(builder *strings.Builder, statusCode int) {
 	builder.WriteString(fmt.Sprintf(
 		"%s %d %s",
@@ -158,6 +196,20 @@ func buildDelineator(builder *strings.Builder) {
 func buildPlainTextHeaders(builder *strings.Builder, content string) {
 	headers := map[string]string{
 		"Content-Type":   "text/plain",
+		"Content-Length": strconv.Itoa(len(content)),
+	}
+
+	for k, v := range headers {
+		builder.WriteString(fmt.Sprintf("%s: %s", k, v))
+		buildDelineator(builder)
+	}
+
+	buildDelineator(builder)
+}
+
+func buildOctetStreamHeaders(builder *strings.Builder, content []byte) {
+	headers := map[string]string{
+		"Content-Type":   "application/octet-stream",
 		"Content-Length": strconv.Itoa(len(content)),
 	}
 
