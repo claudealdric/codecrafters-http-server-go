@@ -2,27 +2,31 @@ package httpserver
 
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 )
 
-const httpVersion = "HTTP/1.1"
+const (
+	StatusOK       = uint(200)
+	StatusCreated  = uint(201)
+	StatusNotFound = uint(404)
+	httpVersion    = "HTTP/1.1"
+)
 
-var statusCodeToReasonPhrase = map[int]string{
-	http.StatusOK:       "OK",
-	http.StatusNotFound: "Not Found",
-	http.StatusCreated:  "Created",
+var statusCodeToReasonPhrase = map[uint]string{
+	StatusOK:       "OK",
+	StatusNotFound: "Not Found",
+	StatusCreated:  "Created",
 }
 
 type Response struct {
-	statusCode int
+	statusCode uint
 	headers    map[string]string
 	body       string
 	builder    *strings.Builder
 }
 
-func NewResponse(statusCode int, body string) *Response {
+func NewResponse(statusCode uint, body string) *Response {
 	headers := make(map[string]string)
 	var builder strings.Builder
 

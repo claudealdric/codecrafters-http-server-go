@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +10,7 @@ import (
 
 func handleEcho(request *Request) {
 	echoArg := strings.TrimPrefix(request.path, "/echo/")
-	response := NewResponse(http.StatusOK, echoArg)
+	response := NewResponse(StatusOK, echoArg)
 	response.Send(request)
 }
 
@@ -22,13 +21,13 @@ func handleGetFiles(request *Request) {
 		handleNotFound(request)
 		return
 	}
-	response := NewResponse(http.StatusOK, string(content))
+	response := NewResponse(StatusOK, string(content))
 	response.headers["Content-Type"] = "application/octet-stream"
 	response.Send(request)
 }
 
 func handleNotFound(request *Request) {
-	response := NewResponse(http.StatusNotFound, "")
+	response := NewResponse(StatusNotFound, "")
 	response.Send(request)
 }
 
@@ -36,18 +35,18 @@ func handlePostFiles(request *Request) {
 	fileName := strings.TrimPrefix(request.path, "/files/")
 	filePath := filepath.Join(config.Directory, fileName)
 	os.WriteFile(filePath, request.body, 0644)
-	response := NewResponse(http.StatusCreated, "")
+	response := NewResponse(StatusCreated, "")
 	response.Send(request)
 
 }
 
 func handleRoot(request *Request) {
-	response := NewResponse(http.StatusOK, "")
+	response := NewResponse(StatusOK, "")
 	response.Send(request)
 }
 
 func handleUserAgent(request *Request) {
 	userAgent := request.headers["user-agent"]
-	response := NewResponse(http.StatusOK, userAgent)
+	response := NewResponse(StatusOK, userAgent)
 	response.Send(request)
 }
