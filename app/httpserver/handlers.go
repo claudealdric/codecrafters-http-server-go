@@ -15,18 +15,25 @@ var supportedEncodings = map[string]struct{}{
 func handleEcho(request *Request) {
 	echoArg := strings.TrimPrefix(request.path, "/echo/")
 	response := NewResponse(StatusOK, echoArg)
-	cs, shouldEncode := request.headers["accept-encoding"]
-	if !shouldEncode {
-		response.Send(request)
-		return
+	encoding := getSupportedEncoding(request)
+	if encoding != "" {
+		response.headers["Content-Encoding"] = encoding
 	}
-	_, isSupportedEncoding := supportedEncodings[cs]
-	if !isSupportedEncoding {
-		response.Send(request)
-		return
-	}
-	response.headers["Content-Encoding"] = cs
 	response.Send(request)
+}
+
+func getSupportedEncoding(request *Request) string {
+	encondingsString := request.headers["accept-encoding"]
+	if encondingsString == "" {
+		return ""
+	}
+	encodingsSlice := strings.Split(encondingsString, ", ")
+	for _, encoding := range encodingsSlice {
+		if _, isSupported := supportedEncodings[encoding]; isSupported {
+			return encoding
+		}
+	}
+	return ""
 }
 
 func handleGetFiles(request *Request) {
