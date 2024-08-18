@@ -1,6 +1,8 @@
 package httpserver
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"strconv"
 	"strings"
@@ -49,6 +51,10 @@ func (r *Response) Send(request *Request) {
 
 func (r *Response) String() string {
 	r.buildStatusLine()
+
+	if r.headers["Content-Encoding"] == "gzip" {
+		r.body = gzipCompress(r.body)
+	}
 
 	if r.headers != nil {
 		r.buildHeaders()
@@ -101,4 +107,18 @@ func (r *Response) buildStatusLine() {
 		statusCodeToReasonPhrase[r.statusCode],
 	))
 	r.buildDelineator()
+}
+
+func gzipCompress(input string) string {
+	var compressedData bytes.Buffer
+	writer := gzip.NewWriter(&compressedData)
+	_, err := writer.Write([]byte(input))
+	if err != nil {
+		return ""
+	}
+	err = writer.Close()
+	if err != nil {
+		return ""
+	}
+	return compressedData.String()
 }
