@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,7 +57,11 @@ func handleNotFound(request *Request) {
 func handlePostFiles(request *Request) {
 	fileName := strings.TrimPrefix(request.path, "/files/")
 	filePath := filepath.Join(config.Directory, fileName)
-	os.WriteFile(filePath, request.body, 0644)
+	err := os.WriteFile(filePath, request.body, 0644)
+	if err != nil {
+		fmt.Printf("error writing to file %q\n: %v", filePath, err)
+		return
+	}
 	response := NewResponse(StatusCreated, "")
 	response.Send(request)
 

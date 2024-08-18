@@ -22,7 +22,7 @@ func ProcessRequest(conn net.Conn) {
 
 	request, err := NewRequest(conn)
 	if err != nil {
-		fmt.Println("Error parsing the request:", err)
+		fmt.Println("error parsing the request:", err)
 		return
 	}
 
@@ -34,17 +34,17 @@ func NewRequest(conn net.Conn) (*Request, error) {
 
 	requestLine, err := reader.ReadString('\n')
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading the request line: %w", err)
 	}
 
 	headers, err := getHeaders(reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading the request headers: %w", err)
 	}
 
 	body, err := getRequestBody(reader, headers)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading the request body: %w", err)
 	}
 
 	return &Request{

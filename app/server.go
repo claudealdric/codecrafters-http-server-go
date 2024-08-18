@@ -18,14 +18,14 @@ func main() {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		log.Fatalf("Failed to bind to port %d\n", port)
+		log.Fatalf("failed to bind to port %d\n", port)
 	}
 	defer listener.Close()
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatalln("Error accepting connection:", err)
+			log.Fatalln("error accepting connection:", err)
 		}
 
 		go httpserver.ProcessRequest(conn)
