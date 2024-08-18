@@ -22,7 +22,7 @@ func ProcessRequest(conn net.Conn) {
 
 	request, err := NewRequest(conn)
 	if err != nil {
-		fmt.Println("Error parsing the request:", err.Error())
+		fmt.Println("Error parsing the request:", err)
 		return
 	}
 
